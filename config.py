@@ -8,7 +8,7 @@ class FLAGS(object):
     cpm_stages = 3
     joint_gaussian_variance = 1.0
     center_radius = 21
-    num_of_joints = 21
+    num_of_joints = 7
     color_channel = 'RGB'
     normalize_img = True
     use_gpu = True
@@ -37,11 +37,11 @@ class FLAGS(object):
     """
     Training settings
     """
-    network_def = 'cpm_hand'
+    network_def = 'cpm_pen'
     train_img_dir = ''
     val_img_dir = ''
     bg_img_dir = ''
-    pretrained_model = 'cpm_hand'
+    pretrained_model = ''
     batch_size = 5
     init_lr = 0.001
     lr_decay_rate = 0.5

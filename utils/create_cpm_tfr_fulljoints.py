@@ -13,7 +13,7 @@ dataset_dir = ''
 
 SHOW_INFO = False
 box_size = 64
-num_of_joints = 21
+num_of_joints = 7
 gaussian_radius = 2
 
 
