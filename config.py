@@ -3,8 +3,8 @@ class FLAGS(object):
     """
     General settings
     """
-    input_size = 256
-    heatmap_size = 32
+    input_size = 368 # according to paper
+    heatmap_size = int(input_size / 8)
     cpm_stages = 3
     joint_gaussian_variance = 1.0
     center_radius = 21
@@ -51,11 +51,11 @@ class FLAGS(object):
     validation_iters = 1000
     model_save_iters = 5000
     augmentation_config = {'hue_shift_limit': (-5, 5),
-                           'sat_shift_limit': (-10, 10),
+                           'sat_shift_limit': (0, 127),
                            'val_shift_limit': (-15, 15),
                            'translation_limit': (-0.15, 0.15),
-                           'scale_limit': (-0.3, 0.5),
-                           'rotate_limit': (-90, 90)}
+                           'scale_limit': (0.5, 1.1),
+                           'rotate_limit': 90}
     hnm = True  # Make sure generate hnm files first
     do_cropping = True
 

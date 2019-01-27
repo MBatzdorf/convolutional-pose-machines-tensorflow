@@ -7,10 +7,12 @@ import time
 
 from utils import cpm_utils
 from config import FLAGS
-import Ensemble_data_generator
+from utils import dataProvider
 
 cpm_model = importlib.import_module('models.nets.' + FLAGS.network_def)
 
+# TODO: Set suitable epoch number
+# TODO: Set appropriate model save path after x epochs
 
 def main(argv):
     """
@@ -45,7 +47,7 @@ def main(argv):
     os.system('mkdir -p {}'.format(test_log_save_dir))
 
     """ Create data generator
-    """
+    
     g = Ensemble_data_generator.ensemble_data_generator(FLAGS.train_img_dir,
                                                         FLAGS.bg_img_dir,
                                                         FLAGS.batch_size, FLAGS.input_size, True, True,
@@ -54,6 +56,9 @@ def main(argv):
                                                              FLAGS.bg_img_dir,
                                                              FLAGS.batch_size, FLAGS.input_size, True, True,
                                                              FLAGS.augmentation_config, FLAGS.hnm, FLAGS.do_cropping)
+    """
+    g = dataProvider.dataProvider(FLAGS.batch_size, FLAGS.augmentation_config)
+    g_eval = dataProvider.dataProvider(FLAGS.batch_size, FLAGS.augmentation_config)
 
     """ Build network graph
     """
@@ -142,9 +147,10 @@ def main(argv):
             train_writer.add_summary(summaries, global_step)
 
             # Draw intermediate results
-            if (global_step + 1) % 10 == 0:
+            demo_idx = 1
+            if (global_step + 1) % 2 == 0:
                 if FLAGS.color_channel == 'GRAY':
-                    demo_img = np.repeat(batch_x_np[0], 3, axis=2)
+                    demo_img = np.repeat(batch_x_np[demo_idx], 3, axis=2)
                     if FLAGS.normalize_img:
                         demo_img += 0.5
                     else:
@@ -152,7 +158,7 @@ def main(argv):
                         demo_img /= 255.0
                 elif FLAGS.color_channel == 'RGB':
                     if FLAGS.normalize_img:
-                        demo_img = batch_x_np[0] + 0.5
+                        demo_img = batch_x_np[demo_idx] + 0.5
                     else:
                         demo_img += 128.0
                         demo_img /= 255.0
@@ -161,7 +167,7 @@ def main(argv):
 
                 demo_stage_heatmaps = []
                 for stage in range(FLAGS.cpm_stages):
-                    demo_stage_heatmap = stage_heatmap_np[stage][0, :, :, 0:FLAGS.num_of_joints].reshape(
+                    demo_stage_heatmap = stage_heatmap_np[stage][demo_idx, :, :, 0:FLAGS.num_of_joints].reshape(
                         (FLAGS.heatmap_size, FLAGS.heatmap_size, FLAGS.num_of_joints))
                     demo_stage_heatmap = cv2.resize(demo_stage_heatmap, (FLAGS.input_size, FLAGS.input_size))
                     demo_stage_heatmap = np.amax(demo_stage_heatmap, axis=2)
@@ -169,7 +175,7 @@ def main(argv):
                     demo_stage_heatmap = np.repeat(demo_stage_heatmap, 3, axis=2)
                     demo_stage_heatmaps.append(demo_stage_heatmap)
 
-                demo_gt_heatmap = batch_gt_heatmap_np[0, :, :, 0:FLAGS.num_of_joints].reshape(
+                demo_gt_heatmap = batch_gt_heatmap_np[demo_idx, :, :, 0:FLAGS.num_of_joints].reshape(
                     (FLAGS.heatmap_size, FLAGS.heatmap_size, FLAGS.num_of_joints))
                 demo_gt_heatmap = cv2.resize(demo_gt_heatmap, (FLAGS.input_size, FLAGS.input_size))
                 demo_gt_heatmap = np.amax(demo_gt_heatmap, axis=2)

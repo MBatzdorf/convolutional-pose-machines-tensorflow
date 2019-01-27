@@ -4,6 +4,9 @@ import cpm_utils
 import numpy as np
 import math
 import tensorflow as tf
+tf.enable_eager_execution()
+from datasetWriter import datasetWriter as dw
+
 import time
 import os
 
@@ -11,7 +14,7 @@ import os
 tfr_file = 'cpm_sample_dataset.tfrecords'
 
 SHOW_INFO = False
-box_size = 64
+box_size = 368 # according to paper
 num_of_joints = 7
 gaussian_radius = 2
 
@@ -90,12 +93,53 @@ for i, img_id in enumerate(image_ids):
             cur_pen_joints_x.append(float(keypoints[kp_idx * 3]))
             cur_pen_joints_y.append(float(keypoints[kp_idx * 3 + 1]))
 
+        '''
         # Crop image and adjust joint coords
         cur_img = cur_img[int(float(cur_pen_bbox[1])):int(float(cur_pen_bbox[3])),
                   int(float(cur_pen_bbox[0])):int(float(cur_pen_bbox[2])),
                   :]
+
         cur_pen_joints_x = [x - cur_pen_bbox[0] for x in cur_pen_joints_x]
         cur_pen_joints_y = [x - cur_pen_bbox[1] for x in cur_pen_joints_y]
+
+        '''
+        if float(cur_pen_bbox[2] - cur_pen_bbox[0]) > float(cur_pen_bbox[3] - cur_pen_bbox[1]):
+            isHorizontal = True
+        else:
+            isHorizontal = False
+
+        if isHorizontal:
+            longside = cur_pen_bbox[2] - cur_pen_bbox[0]
+            shortside = cur_pen_bbox[3] - cur_pen_bbox[1]
+            difference = longside - shortside
+            newylow = cur_pen_bbox[1] - difference / 2
+            newyhigh = cur_pen_bbox[3] + difference / 2
+
+            if newylow < 0:
+                newylow = 0
+            if newyhigh > cur_img.shape[1]:
+                newyhigh = box_size
+
+            cur_img = cur_img[int(float(newylow)):int(float(newyhigh)), int(float(cur_pen_bbox[0])):int(float(cur_pen_bbox[2])), :]
+            cur_pen_joints_x = [x - cur_pen_bbox[0] for x in cur_pen_joints_x]
+            cur_pen_joints_y = [x - newylow for x in cur_pen_joints_y]
+        else:
+            longside = cur_pen_bbox[3] - cur_pen_bbox[1]
+            shortside = cur_pen_bbox[2] - cur_pen_bbox[0]
+            difference = longside - shortside
+            newxlow = cur_pen_bbox[0] - difference / 2
+            newxhigh = cur_pen_bbox[2] + difference / 2
+
+            if newxlow < 0:
+                newxlow = 0
+            if newxhigh > cur_img.shape[0]:
+                newxhigh = box_size
+
+            cur_img = cur_img[int(float(cur_pen_bbox[1])):int(float(cur_pen_bbox[3])),
+                      int(float(newxlow)):int(float(newxhigh)), :]
+            cur_pen_joints_x = [x - newylow for x in cur_pen_joints_x]
+            cur_pen_joints_y = [x - cur_pen_bbox[1] for x in cur_pen_joints_y]
+
 
         # Display joints
         '''
@@ -193,10 +237,14 @@ for i, img_id in enumerate(image_ids):
         #cv2.imshow('h', (np.amax(output_heatmaps[:, :, 0:7], axis=2)*255).astype(np.uint8))
         #cv2.waitKey(1000)
 
+        print(cur_pen_joints_x)
+        print(cur_pen_joints_y)
 
         coords_set = np.concatenate((np.reshape(cur_pen_joints_x, (num_of_joints, 1)),
                                      np.reshape(cur_pen_joints_y, (num_of_joints, 1))),
                                     axis=1)
+
+        print(coords_set)
 
         output_image_raw = output_image.astype(np.uint8).tostring()
         output_heatmaps_raw = output_heatmaps.flatten().tolist()
@@ -204,9 +252,8 @@ for i, img_id in enumerate(image_ids):
 
         raw_sample = tf.train.Example(features=tf.train.Features(feature={
             'image': _bytes_feature(output_image_raw),
-            'heatmaps': _float64_feature(output_heatmaps_raw)
+            'keypoints': _float64_feature(output_coords_raw),
         }))
-
         tfr_writer.write(raw_sample.SerializeToString())
 
         img_count += 1
@@ -215,3 +262,5 @@ for i, img_id in enumerate(image_ids):
             t1 = time.time()
 
 tfr_writer.close()
+
+writer = dw(box_size)
