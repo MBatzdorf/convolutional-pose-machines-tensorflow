@@ -5,6 +5,10 @@ from tensorpack.dataflow.imgaug.base import ImageAugmentor
 from tensorpack.dataflow.imgaug.transform import ResizeTransform
 from tensorpack.dataflow.imgaug.geometry import WarpAffineTransform,TransformAugmentorBase
 
+#from tensorpack.dataflow.imgaug import ImageAugmentor
+#from tensorpack.dataflow.imgaug import ResizeTransform
+#from tensorpack.dataflow.imgaug.geometry import WarpAffineTransform,TransformAugmentorBase
+
 
 class AugImgMetadata:
     """

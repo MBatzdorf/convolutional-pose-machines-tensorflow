@@ -1,11 +1,11 @@
 import numpy as np
 import tensorflow as tf
 import pickle
-import cv2
 
 class datasetWriter(object):
 
-    tfr_file = 'cpm_sample_dataset.tfrecords'
+    tfr_file = 'cpm_sample_dataset_uncropped_validation.tfrecords'
+    output_dataset_file = 'cpm_dataset_uncropped_validation'
     num_of_joints = 7
 
     image_feature_description = {
@@ -20,7 +20,7 @@ class datasetWriter(object):
         raw_dataset = self._read_tf_records()
         self._create_training_data_from_tf_records(raw_dataset)
 
-        with open('cpm_dataset', 'wb') as fp:
+        with open(self.output_dataset_file, 'wb') as fp:
             pickle.dump(self.data, fp)
 
 

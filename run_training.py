@@ -10,9 +10,7 @@ from config import FLAGS
 from utils import dataProvider
 
 cpm_model = importlib.import_module('models.nets.' + FLAGS.network_def)
-
-# TODO: Set suitable epoch number
-# TODO: Set appropriate model save path after x epochs
+SHOW_INTERMEDIATE_RESULTS = False
 
 def main(argv):
     """
@@ -57,8 +55,8 @@ def main(argv):
                                                              FLAGS.batch_size, FLAGS.input_size, True, True,
                                                              FLAGS.augmentation_config, FLAGS.hnm, FLAGS.do_cropping)
     """
-    g = dataProvider.dataProvider(FLAGS.batch_size, FLAGS.augmentation_config)
-    g_eval = dataProvider.dataProvider(FLAGS.batch_size, FLAGS.augmentation_config)
+    g = dataProvider.dataProvider(FLAGS.batch_size, FLAGS.augmentation_config, False)
+    g_eval = dataProvider.dataProvider(FLAGS.batch_size, FLAGS.augmentation_config, True)
 
     """ Build network graph
     """
@@ -147,58 +145,59 @@ def main(argv):
             train_writer.add_summary(summaries, global_step)
 
             # Draw intermediate results
-            demo_idx = 1
-            if (global_step + 1) % 2 == 0:
-                if FLAGS.color_channel == 'GRAY':
-                    demo_img = np.repeat(batch_x_np[demo_idx], 3, axis=2)
-                    if FLAGS.normalize_img:
-                        demo_img += 0.5
+            if SHOW_INTERMEDIATE_RESULTS:
+                demo_idx = 1
+                if (global_step + 1) % 2 == 0:
+                    if FLAGS.color_channel == 'GRAY':
+                        demo_img = np.repeat(batch_x_np[demo_idx], 3, axis=2)
+                        if FLAGS.normalize_img:
+                            demo_img += 0.5
+                        else:
+                            demo_img += 128.0
+                            demo_img /= 255.0
+                    elif FLAGS.color_channel == 'RGB':
+                        if FLAGS.normalize_img:
+                            demo_img = batch_x_np[demo_idx] + 0.5
+                        else:
+                            demo_img += 128.0
+                            demo_img /= 255.0
                     else:
-                        demo_img += 128.0
-                        demo_img /= 255.0
-                elif FLAGS.color_channel == 'RGB':
-                    if FLAGS.normalize_img:
-                        demo_img = batch_x_np[demo_idx] + 0.5
-                    else:
-                        demo_img += 128.0
-                        demo_img /= 255.0
-                else:
-                    raise ValueError('Non support image type.')
+                        raise ValueError('Non support image type.')
 
-                demo_stage_heatmaps = []
-                for stage in range(FLAGS.cpm_stages):
-                    demo_stage_heatmap = stage_heatmap_np[stage][demo_idx, :, :, 0:FLAGS.num_of_joints].reshape(
+                    demo_stage_heatmaps = []
+                    for stage in range(FLAGS.cpm_stages):
+                        demo_stage_heatmap = stage_heatmap_np[stage][demo_idx, :, :, 0:FLAGS.num_of_joints].reshape(
+                            (FLAGS.heatmap_size, FLAGS.heatmap_size, FLAGS.num_of_joints))
+                        demo_stage_heatmap = cv2.resize(demo_stage_heatmap, (FLAGS.input_size, FLAGS.input_size))
+                        demo_stage_heatmap = np.amax(demo_stage_heatmap, axis=2)
+                        demo_stage_heatmap = np.reshape(demo_stage_heatmap, (FLAGS.input_size, FLAGS.input_size, 1))
+                        demo_stage_heatmap = np.repeat(demo_stage_heatmap, 3, axis=2)
+                        demo_stage_heatmaps.append(demo_stage_heatmap)
+
+                    demo_gt_heatmap = batch_gt_heatmap_np[demo_idx, :, :, 0:FLAGS.num_of_joints].reshape(
                         (FLAGS.heatmap_size, FLAGS.heatmap_size, FLAGS.num_of_joints))
-                    demo_stage_heatmap = cv2.resize(demo_stage_heatmap, (FLAGS.input_size, FLAGS.input_size))
-                    demo_stage_heatmap = np.amax(demo_stage_heatmap, axis=2)
-                    demo_stage_heatmap = np.reshape(demo_stage_heatmap, (FLAGS.input_size, FLAGS.input_size, 1))
-                    demo_stage_heatmap = np.repeat(demo_stage_heatmap, 3, axis=2)
-                    demo_stage_heatmaps.append(demo_stage_heatmap)
+                    demo_gt_heatmap = cv2.resize(demo_gt_heatmap, (FLAGS.input_size, FLAGS.input_size))
+                    demo_gt_heatmap = np.amax(demo_gt_heatmap, axis=2)
+                    demo_gt_heatmap = np.reshape(demo_gt_heatmap, (FLAGS.input_size, FLAGS.input_size, 1))
+                    demo_gt_heatmap = np.repeat(demo_gt_heatmap, 3, axis=2)
 
-                demo_gt_heatmap = batch_gt_heatmap_np[demo_idx, :, :, 0:FLAGS.num_of_joints].reshape(
-                    (FLAGS.heatmap_size, FLAGS.heatmap_size, FLAGS.num_of_joints))
-                demo_gt_heatmap = cv2.resize(demo_gt_heatmap, (FLAGS.input_size, FLAGS.input_size))
-                demo_gt_heatmap = np.amax(demo_gt_heatmap, axis=2)
-                demo_gt_heatmap = np.reshape(demo_gt_heatmap, (FLAGS.input_size, FLAGS.input_size, 1))
-                demo_gt_heatmap = np.repeat(demo_gt_heatmap, 3, axis=2)
-
-                if FLAGS.cpm_stages > 4:
-                    upper_img = np.concatenate((demo_stage_heatmaps[0], demo_stage_heatmaps[1], demo_stage_heatmaps[2]),
-                                               axis=1)
-                    if FLAGS.normalize_img:
-                        blend_img = 0.5 * demo_img + 0.5 * demo_gt_heatmap
+                    if FLAGS.cpm_stages > 4:
+                        upper_img = np.concatenate((demo_stage_heatmaps[0], demo_stage_heatmaps[1], demo_stage_heatmaps[2]),
+                                                   axis=1)
+                        if FLAGS.normalize_img:
+                            blend_img = 0.5 * demo_img + 0.5 * demo_gt_heatmap
+                        else:
+                            blend_img = 0.5 * demo_img / 255.0 + 0.5 * demo_gt_heatmap
+                        lower_img = np.concatenate((demo_stage_heatmaps[FLAGS.cpm_stages - 1], demo_gt_heatmap, blend_img),
+                                                   axis=1)
+                        demo_img = np.concatenate((upper_img, lower_img), axis=0)
+                        cv2.imshow('current heatmap', (demo_img * 255).astype(np.uint8))
+                        cv2.waitKey(1000)
                     else:
-                        blend_img = 0.5 * demo_img / 255.0 + 0.5 * demo_gt_heatmap
-                    lower_img = np.concatenate((demo_stage_heatmaps[FLAGS.cpm_stages - 1], demo_gt_heatmap, blend_img),
-                                               axis=1)
-                    demo_img = np.concatenate((upper_img, lower_img), axis=0)
-                    cv2.imshow('current heatmap', (demo_img * 255).astype(np.uint8))
-                    cv2.waitKey(1000)
-                else:
-                    upper_img = np.concatenate((demo_stage_heatmaps[FLAGS.cpm_stages - 1], demo_gt_heatmap, demo_img),
-                                               axis=1)
-                    cv2.imshow('current heatmap', (upper_img * 255).astype(np.uint8))
-                    cv2.waitKey(1000)
+                        upper_img = np.concatenate((demo_stage_heatmaps[FLAGS.cpm_stages - 1], demo_gt_heatmap, demo_img),
+                                                   axis=1)
+                        cv2.imshow('current heatmap', (upper_img * 255).astype(np.uint8))
+                        cv2.waitKey(1000)
 
             if (global_step + 1) % FLAGS.validation_iters == 0:
                 mean_val_loss = 0

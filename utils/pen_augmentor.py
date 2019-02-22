@@ -2,11 +2,14 @@ from .augmentors import ScaleAug, RotateAug, HueAug, FlipAug, SaturationAug, \
     joints_to_point8, point8_to_joints, AugImgMetadata
 import cv2
 import numpy as np
+from random import uniform
 
 class PenAugmentor(object):
     """
     Holder for data required for augmentation - subset of metadata
     """
+
+    augmentation_propability = 0.6
 
     def __init__(self, aug_config):
         rotation_limit = aug_config['rotate_limit']
@@ -39,10 +42,17 @@ class PenAugmentor(object):
     def augment_image_and_keypoints(self, image, keypoints):
         kp = keypoints
         img = image
-        img = self.change_hue(img)
-        img = self.change_saturation(img)
+
+        if uniform(0, 1) <= self.augmentation_propability:
+            img = self.change_hue(img)
+
+        if uniform(0, 1) <= self.augmentation_propability:
+            img = self.change_saturation(img)
+
         img, kp = self.flip_image(img, kp)
-        img, kp = self.rotate_image(img, kp)
+
+        if uniform(0, 1) <= self.augmentation_propability:
+            img, kp = self.rotate_image(img, kp)
 
         return img, kp
 

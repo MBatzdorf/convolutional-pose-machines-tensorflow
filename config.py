@@ -42,7 +42,7 @@ class FLAGS(object):
     val_img_dir = ''
     bg_img_dir = ''
     pretrained_model = ''
-    batch_size = 5
+    batch_size = 10
     init_lr = 0.001
     lr_decay_rate = 0.5
     lr_decay_step = 10000

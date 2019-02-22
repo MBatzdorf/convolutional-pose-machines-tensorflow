@@ -6,17 +6,23 @@ from .pen_augmentor import PenAugmentor
 class dataProvider(object):
 
     num_of_joints = 7
+    input_dataset_file = 'cpm_dataset_cropped'
+    input_validation_dataset_file = 'cpm_dataset_cropped_validation'
 
 
-    def __init__(self, batch_size, aug_config):
+    def __init__(self, batch_size, aug_config, for_validation):
         self.data = [] # data[0] = image_array data[1] = keypoints_array
         self.batch_size = batch_size
         self.aug_config = aug_config
         self.current_index = 0
         self.pen_augmentor = PenAugmentor(aug_config)
 
-        with open('cpm_dataset', 'rb') as fp:
-            self.data = pickle.load(fp)
+        if for_validation:
+            with open(self.input_validation_dataset_file, 'rb') as fp:
+                self.data = pickle.load(fp)
+        else:
+            with open(self.input_dataset_file, 'rb') as fp:
+                self.data = pickle.load(fp)
 
 
     def next(self):
@@ -28,11 +34,10 @@ class dataProvider(object):
             current_image = self.data[self.current_index][0]
             current_keypoints = self.data[self.current_index][1]
 
-            #TODO: Use augmentation below
-            #new_img, new_kp = self.pen_augmentor.augment_image_and_keypoints(current_image, current_keypoints)
+            new_img, new_kp = self.pen_augmentor.augment_image_and_keypoints(current_image, current_keypoints)
 
-            imgs.append(current_image)
-            kps.append(current_keypoints)
+            imgs.append(new_img)
+            kps.append(new_kp)
 
             self.current_index = self.current_index + 1
 
